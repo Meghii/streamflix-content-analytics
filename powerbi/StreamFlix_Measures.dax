@@ -1,0 +1,110 @@
+// StreamFlix — Power BI measures
+// Paste each measure into Power BI Desktop: Home > New measure, then replace the default text.
+// Every measure assumes the model and relationships in the build guide (Step 3).
+
+// ---------- Volume ----------
+Total Watch Hours = SUM ( watch_history[watch_duration_min] ) / 60
+
+Total Sessions = COUNTROWS ( watch_history )
+
+Total Subscribers = COUNTROWS ( subscribers )
+
+// ---------- Subscriber health ----------
+Active Subscribers =
+CALCULATE ( COUNTROWS ( subscribers ), subscribers[is_active] = TRUE () )
+
+Active Rate = DIVIDE ( [Active Subscribers], [Total Subscribers] )
+
+Churn Rate = 1 - [Active Rate]
+
+// ---------- Engagement ----------
+Avg Completion Rate = AVERAGE ( watch_history[completion_pct] )
+
+Watch Hours per Active Sub = DIVIDE ( [Total Watch Hours], [Active Subscribers] )
+
+// ---------- Revenue ----------
+MRR =
+CALCULATE (
+    SUM ( subscribers[monthly_price_usd] ),
+    subscribers[is_active] = TRUE ()
+)
+
+ARR = [MRR] * 12
+
+ARPU = DIVIDE ( [MRR], [Active Subscribers] )
+
+// ---------- Intent ----------
+Watchlist Conversion =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( watchlist ), watchlist[watched] = TRUE () ),
+    COUNTROWS ( watchlist )
+)
+
+// ---------- Catalogue ----------
+Originals Share of Hours =
+DIVIDE (
+    CALCULATE ( [Total Watch Hours], titles[is_original] = TRUE () ),
+    [Total Watch Hours]
+)
+
+Hit Concentration (top 10%) =
+VAR TotalPlays = SUM ( titles[total_plays] )
+VAR RankedTitles = TOPN ( ROUNDUP ( COUNTROWS ( titles ) * 0.1, 0 ), titles, titles[total_plays], DESC )
+VAR TopPlays = SUMX ( RankedTitles, titles[total_plays] )
+RETURN
+    DIVIDE ( TopPlays, TotalPlays )
+
+// Watch hours bought per $1 million of licence spend — the efficiency measure
+Watch Hours per $1M =
+DIVIDE ( [Total Watch Hours], SUM ( titles[license_cost_usd] ) / 1000000 )
+
+// ---------- Retention (bonus) ----------
+// A subscriber counts as retained at month N if churn_date is blank or later than
+// signup_date + N months. Subscribers too young to be observed at month N are excluded
+// from the denominator, otherwise new cohorts score 100%.
+Retention 3m =
+VAR Snapshot = DATE ( 2026, 6, 1 )
+VAR Eligible = FILTER ( subscribers, EDATE ( subscribers[signup_date], 3 ) <= Snapshot )
+VAR Kept =
+    FILTER (
+        Eligible,
+        ISBLANK ( subscribers[churn_date] )
+            || subscribers[churn_date] > EDATE ( subscribers[signup_date], 3 )
+    )
+RETURN
+    DIVIDE ( COUNTROWS ( Kept ), COUNTROWS ( Eligible ) )
+
+Retention 6m =
+VAR Snapshot = DATE ( 2026, 6, 1 )
+VAR Eligible = FILTER ( subscribers, EDATE ( subscribers[signup_date], 6 ) <= Snapshot )
+VAR Kept =
+    FILTER (
+        Eligible,
+        ISBLANK ( subscribers[churn_date] )
+            || subscribers[churn_date] > EDATE ( subscribers[signup_date], 6 )
+    )
+RETURN
+    DIVIDE ( COUNTROWS ( Kept ), COUNTROWS ( Eligible ) )
+
+Retention 12m =
+VAR Snapshot = DATE ( 2026, 6, 1 )
+VAR Eligible = FILTER ( subscribers, EDATE ( subscribers[signup_date], 12 ) <= Snapshot )
+VAR Kept =
+    FILTER (
+        Eligible,
+        ISBLANK ( subscribers[churn_date] )
+            || subscribers[churn_date] > EDATE ( subscribers[signup_date], 12 )
+    )
+RETURN
+    DIVIDE ( COUNTROWS ( Kept ), COUNTROWS ( Eligible ) )
+
+// ---------- Optional: a label measure for the insight text boxes ----------
+Churn Insight Label =
+"Basic with Ads churns at "
+    & FORMAT (
+        CALCULATE ( [Churn Rate], subscribers[plan_type] = "Basic with Ads" ),
+        "0.0%"
+      )
+    & " against "
+    & FORMAT ( CALCULATE ( [Churn Rate], subscribers[plan_type] = "Premium" ), "0.0%" )
+    & " on Premium"

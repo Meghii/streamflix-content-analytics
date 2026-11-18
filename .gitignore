@@ -1,0 +1,9 @@
+# source data (not redistributed)
+*.csv
+!data/*.md
+
+# notebook checkpoints and caches
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.DS_Store
