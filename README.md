@@ -36,7 +36,8 @@ Two numbers the analysis deliberately refuses to report:
 ├── notebooks/
 │   ├── Phase1_DataCleaning_MeghanaJ.ipynb    # profiling, quality checks, QC report
 │   ├── Phase2_EDA_MeghanaJ.ipynb             # 10 charts, each with observations
-│   └── Phase3_KPIs_MeghanaJ.ipynb            # 10 KPIs + cohort retention bonus
+│   ├── Phase3_KPIs_MeghanaJ.ipynb            # 10 KPIs + cohort retention bonus
+│   └── SQL_Analysis_MeghanaJ.ipynb           # 17 queries in SQLite, cross-checked
 ├── charts/                                   # all 13 charts as PNG (150 dpi)
 ├── dashboard/
 │   ├── Phase4_Dashboard_MeghanaJ.xlsx        # 5 pages, working dropdown filters
@@ -94,6 +95,23 @@ All ten KPIs from the brief, each calculated in its own labelled block, plus seg
 
 **Cohort retention (bonus).** Retention at 3/6/12 months is 97.7% / 95.3% / 92.2% on a churn-based definition, with subscribers too young to observe excluded from each column. The activity-based definition gives 16.4% / 19.8% / 22.0%. Both are reported and the disagreement is explained, because choosing the flattering one would be dishonest.
 
+## SQL analysis
+
+`notebooks/SQL_Analysis_MeghanaJ.ipynb` builds the declared schema from `schema_and_sql.sql` in an in-memory SQLite database, loads all 979,000 rows, and answers the business questions in SQL: the twelve queries supplied with the project plus five of my own that target the findings from the earlier phases.
+
+| # | Query | Headline result |
+|---|---|---|
+| Q1–Q6 | Genres, origin countries, release years, formats, languages, completion | Drama 15.1% of hours; series 86.5%; completion flat at 65% across genres |
+| Q7–Q11 | Plan engagement, devices, active/churn rate, MRR/ARPU, watchlist conversion | 74.7% active, 25.3% churn, $175,869 MRR, $15.70 ARPU, 46.2% conversion |
+| Q12 | Content efficiency by genre (supplied) | 0.13–0.21 hours per $1,000, a narrow band |
+| **Q13** | **Churn by plan** | **34.3% ad tier / 24.1% Standard / 18.1% Premium** |
+| **Q14** | **Efficiency by format** | **342.7 hours per $1M for series, 35.2 for films** |
+| **Q15** | **Integrity: viewing after churn** | **131,199 sessions (20.2%) dated after the subscriber churned** |
+| Q16 | Top 10 titles | All ten are TV shows |
+| Q17 | Tenure at churn by plan | ~2 years; Premium leavers last 2.4 months longer than the ad tier |
+
+The notebook ends by re-deriving eight KPIs in SQL and comparing them to the pandas calculations from Phase 3: **every figure agrees to within 0.01**. That cross-check is what makes the report's numbers defensible — they no longer depend on a single library behaving correctly.
+
 ## Phase 4 — Dashboard and management report
 
 `dashboard/Phase4_Dashboard_MeghanaJ.xlsx` — five pages, each with a working dropdown filter (year, format, plan, device, content type), built entirely from live formulas so every number traces back to the Data sheet: engagement overview, content performance, subscriber insights, experience, and catalogue investment.
@@ -118,6 +136,7 @@ Charts are written to `charts/` at 150 dpi.
 
 ## What I would do differently with more time
 
+- **Push the SQL further.** Everything here runs on SQLite in memory, which is right for a one-off analysis but not for a warehouse. Window functions for the cohort table, and a proper date dimension, would let the retention work move into SQL and run on a schedule.
 - **Model the retention event properly.** The dataset records churn as a flag with a date, and the date does not constrain activity. With cancellation events and session-level dates, cohort curves could be measured rather than inferred.
 - **Add advertising revenue.** The ad tier's economics cannot be judged without revenue per user, which is not in the data. Today the tier looks expensive per hour of streaming delivered and we cannot say whether it pays for itself.
 - **Test the series-over-films finding against a proper cost model.** Licence cost is a single number per title; it does not split acquisition from production or account for amortisation across the licence term.
